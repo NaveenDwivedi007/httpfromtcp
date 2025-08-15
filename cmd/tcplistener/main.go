@@ -59,7 +59,9 @@ func main() {
 			log.Fatal("error on the file read")
 			break
 		}
+
 		fmt.Printf("tcp network is connected to port %s\n", ports)
+
 		for line := range getLinesChannel(conn) {
 			if line == "exit" {
 				f.Close()
