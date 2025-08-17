@@ -40,7 +40,15 @@ func main() {
 			break
 		}
 		fmt.Printf("Request line:\n- Method: %s\n- Target: %s\n- Version: %s\n", r.RequestLine.Method, r.RequestLine.RequestTarget, r.RequestLine.HttpVersion)
+		if r.Headers.Size() > 0 {
+			fmt.Printf("Headers:\n")
+			r.Headers.ForEach(printHeaders)
+		}
 	}
 	f.Close()
 
+}
+
+func printHeaders(key string, value string) {
+	fmt.Printf("- %s:%s\n", key, value)
 }

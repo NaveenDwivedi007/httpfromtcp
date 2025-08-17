@@ -47,6 +47,22 @@ func parseHeader(fieldLine []byte) (string, string, error) {
 func (h *Headers) Get(key string) string {
 	return h.headers[strings.ToLower(key)]
 }
+
+func (h *Headers) HasKey(key string) bool {
+	_, ok := h.headers[strings.ToLower(key)]
+	return ok
+
+}
+
+func (h *Headers) ForEach(cb func(key string, value string)) {
+	for key, value := range h.headers {
+		cb(key, value)
+	}
+}
+
+func (h *Headers) Size() int {
+	return len(h.headers)
+}
 func (h *Headers) Set(key string, value string) {
 	val, ok := h.headers[strings.ToLower(key)]
 	if !ok {
@@ -64,7 +80,6 @@ func (h *Headers) Parse(data []byte) (int, bool, error) {
 		if idx == -1 {
 			break
 		}
-		// fmt.Print("Testing header: ", data[read:idx])
 		if idx == 0 {
 			done = true
 			read += len(SEPARATOR)

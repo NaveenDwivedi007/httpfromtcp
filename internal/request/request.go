@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"boot.theprimeagen.tv/internal/headers"
@@ -20,17 +21,18 @@ type parserState string
 const (
 	StateInit   parserState = "init"
 	StateHeader parserState = "Header"
+	StateBody   parserState = "Body"
 	StateDone   parserState = "done"
 )
 
 type Request struct {
 	RequestLine RequestLine
 	Headers     *headers.Headers
+	Body        []byte
 	state       parserState
 }
 
 func parseRequestLine(httpRequest []byte) (*RequestLine, int, error) {
-
 	idx := bytes.Index(httpRequest, SEPARATOR)
 	if idx == -1 {
 		return nil, 0, nil
@@ -56,19 +58,14 @@ func parseRequestLine(httpRequest []byte) (*RequestLine, int, error) {
 	return r, read, nil
 }
 
-func parseHeaderLine(headers []byte) (int, error) {
-	idx := bytes.Index(headers, SEPARATOR)
-	if idx == -1 {
-		return 0, nil
-	}
-	return idx, nil
-}
-
 func (r *Request) parse(data []byte) (int, error) {
 	read := 0
 outer:
 	for {
 		currentData := data[read:]
+		if len(currentData) == 0 {
+			break outer
+		}
 		switch r.state {
 		case StateInit:
 			rl, n, err := parseRequestLine(currentData)
@@ -83,9 +80,7 @@ outer:
 			r.RequestLine = *rl
 			r.state = StateHeader
 			read += n
-			break
 		case StateHeader:
-
 			n, done, err := r.Headers.Parse(currentData)
 			if err != nil {
 				return 0, err
@@ -94,9 +89,26 @@ outer:
 				break outer
 			}
 			if done {
-				r.state = StateDone
+				r.state = StateBody
 			}
 			read += n
+		case StateBody:
+			if r.Headers.HasKey("Content-Length") {
+				length, err := strconv.Atoi(r.Headers.Get("Content-Length"))
+				if err != nil {
+					return 0, err
+				}
+
+				remaining := min(length-len(r.Body), len(currentData))
+				r.Body = append(r.Body, currentData[:remaining]...)
+				read += remaining
+				if len(r.Body) >= length {
+					r.state = StateDone
+				}
+
+			} else {
+				r.state = StateDone
+			}
 		case StateDone:
 			break outer
 		default:
@@ -114,6 +126,7 @@ func newRequest() *Request {
 	return &Request{
 		state:   StateInit,
 		Headers: headers.NewHeaders(),
+		Body:    []byte{},
 	}
 }
 
