@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"strings"
+
+	"boot.theprimeagen.tv/internal/headers"
 )
 
 type RequestLine struct {
@@ -22,6 +24,7 @@ const (
 
 type Request struct {
 	RequestLine RequestLine
+	Header      headers.Headers
 	state       parserState
 }
 
@@ -104,6 +107,7 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 		if err != nil {
 			return nil, ERROR_BAD_START_LINE
 		}
+		request.Header.Parse(buf[readN:])
 		copy(buf, buf[readN:bufLen])
 		bufLen -= readN
 	}
