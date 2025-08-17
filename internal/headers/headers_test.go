@@ -33,4 +33,10 @@ func TestRequestLineParse(t *testing.T) {
 	assert.Equal(t, "localhost:42069,localhost:42069", headers.Get("Host"))
 	assert.Equal(t, 48, n)
 	assert.True(t, done)
+	data = []byte("Host: localhost:42069\r\nHost: localhost:42069\r\n\r\n")
+	n, done, err = headers.Parse(data)
+	require.NoError(t, err)
+	assert.NotEqual(t, "localhost:42069:localhost:42069", headers.Get("Host"))
+	assert.Equal(t, 48, n)
+	assert.True(t, done)
 }
