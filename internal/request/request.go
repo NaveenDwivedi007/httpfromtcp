@@ -18,13 +18,14 @@ type RequestLine struct {
 type parserState string
 
 const (
-	StateInit parserState = "init"
-	StateDone parserState = "done"
+	StateInit   parserState = "init"
+	StateHeader parserState = "Header"
+	StateDone   parserState = "done"
 )
 
 type Request struct {
 	RequestLine RequestLine
-	Header      headers.Headers
+	Headers     *headers.Headers
 	state       parserState
 }
 
@@ -55,13 +56,22 @@ func parseRequestLine(httpRequest []byte) (*RequestLine, int, error) {
 	return r, read, nil
 }
 
+func parseHeaderLine(headers []byte) (int, error) {
+	idx := bytes.Index(headers, SEPARATOR)
+	if idx == -1 {
+		return 0, nil
+	}
+	return idx, nil
+}
+
 func (r *Request) parse(data []byte) (int, error) {
 	read := 0
 outer:
 	for {
+		currentData := data[read:]
 		switch r.state {
 		case StateInit:
-			rl, n, err := parseRequestLine(data[read:])
+			rl, n, err := parseRequestLine(currentData)
 			if err != nil {
 				return 0, err
 			}
@@ -71,10 +81,26 @@ outer:
 			}
 
 			r.RequestLine = *rl
-			r.state = StateDone
+			r.state = StateHeader
+			read += n
+			break
+		case StateHeader:
+
+			n, done, err := r.Headers.Parse(currentData)
+			if err != nil {
+				return 0, err
+			}
+			if n == 0 {
+				break outer
+			}
+			if done {
+				r.state = StateDone
+			}
 			read += n
 		case StateDone:
 			break outer
+		default:
+			panic("parsing logic failed")
 		}
 	}
 	return read, nil
@@ -86,7 +112,8 @@ func (r *Request) done() bool {
 
 func newRequest() *Request {
 	return &Request{
-		state: StateInit,
+		state:   StateInit,
+		Headers: headers.NewHeaders(),
 	}
 }
 
@@ -107,7 +134,7 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 		if err != nil {
 			return nil, ERROR_BAD_START_LINE
 		}
-		request.Header.Parse(buf[readN:])
+
 		copy(buf, buf[readN:bufLen])
 		bufLen -= readN
 	}

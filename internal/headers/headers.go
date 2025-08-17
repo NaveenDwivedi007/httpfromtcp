@@ -62,8 +62,9 @@ func (h *Headers) Parse(data []byte) (int, bool, error) {
 	for {
 		idx := bytes.Index(data[read:], SEPARATOR)
 		if idx == -1 {
-			return 0, done, ErrFoo
+			break
 		}
+		// fmt.Print("Testing header: ", data[read:idx])
 		if idx == 0 {
 			done = true
 			read += len(SEPARATOR)
@@ -72,10 +73,10 @@ func (h *Headers) Parse(data []byte) (int, bool, error) {
 
 		name, value, err := parseHeader(data[read : read+idx])
 		if err != nil {
-			return 0, false, ErrFoo
+			return 0, false, fmt.Errorf("unable to parse header")
 		}
 		if !isTokenValid([]byte(name)) {
-			return 0, false, ErrFoo
+			return 0, false, fmt.Errorf("invalid header field key")
 		}
 		h.Set(name, value)
 		read += idx + len(SEPARATOR)
